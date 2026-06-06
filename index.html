@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Penales Mundial 2026 ⚽ | Juego de penales gratis</title>
-  <meta name="description" content="Pateá penales como en el Mundial 2026. ¿Cuántos goles seguidos podés hacer? Juego gratis, sin descargas, para celular y compu." />
+  <title>Penales Mundial 2026 ⚽ | Torneo de penales gratis</title>
+  <meta name="description" content="Elegí tu selección y ganá el Mundial 2026 a puro penal. Pateá, atajá y avanzá por octavos, cuartos, semifinal y la gran final. Gratis, sin descargas." />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -14,33 +14,75 @@
 
   <button id="mute-btn" aria-label="Silenciar">🔊</button>
 
-  <div id="hud">
-    <div class="hud-box">
-      <div class="hud-label">Goles seguidos</div>
-      <div class="hud-value" id="score-value">0</div>
+  <!-- HUD del partido (tanda de penales) -->
+  <div id="match-hud" class="hidden">
+    <div class="mh-team">
+      <span class="mh-flag" id="mh-you-flag">🏳️</span>
+      <span class="mh-name" id="mh-you-name">VOS</span>
+      <span class="mh-goals" id="mh-you-goals">0</span>
     </div>
-    <div class="hud-box">
-      <div class="hud-label">Récord</div>
-      <div class="hud-value best" id="best-value">0</div>
+    <div class="mh-center">
+      <div class="mh-round" id="mh-round">OCTAVOS</div>
+      <div class="mh-dots" id="mh-dots"></div>
+    </div>
+    <div class="mh-team mh-right">
+      <span class="mh-goals" id="mh-opp-goals">0</span>
+      <span class="mh-name" id="mh-opp-name">RIVAL</span>
+      <span class="mh-flag" id="mh-opp-flag">🏳️</span>
     </div>
   </div>
+
+  <!-- Prompt central (PATEÁ / ATAJÁ) -->
+  <div id="phase-prompt" class="hidden"></div>
 
   <!-- Pantalla de inicio -->
   <div class="overlay" id="start-screen">
     <div class="flag">⚽🏆</div>
     <h1>PENALES<br />MUNDIAL 2026</h1>
-    <p>Tocá dentro del arco para patear. El arquero va a tratar de atajarte. ¿Cuántos goles seguidos hacés?</p>
-    <button class="btn" id="start-btn">▶ JUGAR</button>
-    <div class="hint">👆 Apuntá a los ángulos para que no te ataje</div>
+    <p>Elegí tu selección y ganá el Mundial a puro penal. Pateás, atajás y avanzás ronda por ronda.</p>
+    <p class="sub" id="record-line"></p>
+    <button class="btn" id="play-btn">▶ JUGAR</button>
   </div>
 
-  <!-- Pantalla de fin -->
-  <div class="overlay hidden" id="over-screen">
-    <p class="sub">Goles seguidos</p>
-    <div class="big-score" id="final-score">0</div>
-    <p id="final-msg"></p>
-    <p class="sub" id="final-best">Mejor: 0</p>
-    <button class="btn" id="retry-btn">🔁 JUGAR DE NUEVO</button>
+  <!-- Selección de equipo -->
+  <div class="overlay hidden" id="team-screen">
+    <h1 style="font-size:clamp(24px,7vw,40px)">Elegí tu selección 🌍</h1>
+    <p>Vas a representar a tu país en el Mundial 2026.</p>
+    <div id="team-grid"></div>
+  </div>
+
+  <!-- Intro de cada partido -->
+  <div class="overlay hidden" id="match-screen">
+    <div class="mi-round" id="mi-round">OCTAVOS DE FINAL</div>
+    <div class="mi-vs">
+      <div class="mi-side">
+        <div class="mi-flag" id="mi-you-flag">🏳️</div>
+        <div class="mi-name" id="mi-you-name">VOS</div>
+      </div>
+      <div class="mi-x">VS</div>
+      <div class="mi-side">
+        <div class="mi-flag" id="mi-opp-flag">🏳️</div>
+        <div class="mi-name" id="mi-opp-name">RIVAL</div>
+      </div>
+    </div>
+    <button class="btn" id="kick-btn">⚽ PATEAR</button>
+    <div class="hint">👆 Tocá los ángulos al patear · tocá dónde tirarte al atajar</div>
+  </div>
+
+  <!-- Resultado del partido -->
+  <div class="overlay hidden" id="result-screen">
+    <h1 id="result-title">¡GANASTE!</h1>
+    <p id="result-detail"></p>
+    <button class="btn" id="result-btn">CONTINUAR</button>
+  </div>
+
+  <!-- Campeón -->
+  <div class="overlay hidden" id="champion-screen">
+    <div class="flag">🏆</div>
+    <h1>¡CAMPEÓN<br />DEL MUNDO!</h1>
+    <div class="mi-flag" id="champ-flag" style="font-size:64px">🏳️</div>
+    <p id="champ-team"></p>
+    <button class="btn" id="champ-btn">🎉 JUGAR DE NUEVO</button>
   </div>
 
   <script src="game.js"></script>
