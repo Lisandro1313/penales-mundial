@@ -143,6 +143,27 @@ canvas {
 .dot.goal { background: #22c55e; }
 .dot.miss { background: #ef4444; }
 
+/* ── Panel lateral: quién patea ── */
+#kicker-panel {
+  position: fixed;
+  left: 10px; top: 46%;
+  transform: translateY(-50%);
+  z-index: 5;
+  background: rgba(7,12,30,0.62);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 12px;
+  padding: 9px 11px;
+  color: #fff;
+  max-width: 44vw;
+  pointer-events: none;
+}
+#kicker-panel.hidden { display: none; }
+.kp-label { font-size: 9px; letter-spacing: 1px; opacity: 0.7; text-transform: uppercase; margin-bottom: 5px; }
+.kp-row { display: flex; align-items: center; gap: 7px; }
+.kp-num { font-size: 18px; font-weight: 900; color: #ffd34d; }
+.kp-name { font-size: 14px; font-weight: 800; white-space: nowrap; }
+
 /* ── Prompt central ── */
 #phase-prompt {
   position: fixed;

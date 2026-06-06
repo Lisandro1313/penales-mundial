@@ -44,6 +44,41 @@
     for (let g = 0; g < 8; g++) GROUPS.push(idx.slice(g * 4, g * 4 + 4).map((k) => TEAMS[k]));
   }
 
+  // Pateadores reales (nombre, número) por selección
+  const ROSTERS = {
+    ARG: [["Messi", 10], ["J. Álvarez", 9], ["Lautaro", 22], ["Di María", 11], ["Paredes", 5]],
+    BRA: [["Neymar", 10], ["Vinícius", 7], ["Rodrygo", 11], ["Raphinha", 19], ["Casemiro", 5]],
+    FRA: [["Mbappé", 10], ["Griezmann", 7], ["Dembélé", 11], ["Giroud", 9], ["Tchouaméni", 8]],
+    ESP: [["Morata", 7], ["Yamal", 19], ["Pedri", 8], ["D. Olmo", 10], ["F. Torres", 11]],
+    ING: [["Kane", 9], ["Bellingham", 10], ["Saka", 17], ["Foden", 11], ["Palmer", 24]],
+    ALE: [["Havertz", 7], ["Kimmich", 6], ["Musiala", 10], ["Wirtz", 17], ["Gündogan", 21]],
+    POR: [["Ronaldo", 7], ["B. Fernandes", 8], ["Leão", 10], ["J. Félix", 11], ["B. Silva", 20]],
+    NED: [["Depay", 10], ["Gakpo", 11], ["X. Simons", 7], ["De Jong", 21], ["Malen", 18]],
+    ITA: [["Chiesa", 14], ["Retegui", 9], ["Barella", 18], ["Raspadori", 10], ["Frattesi", 16]],
+    MEX: [["Lozano", 22], ["S. Giménez", 9], ["E. Álvarez", 4], ["Pizarro", 10], ["Antuna", 16]],
+    URU: [["Núñez", 11], ["Valverde", 15], ["De Arrascaeta", 10], ["Pellistri", 7], ["Araújo", 4]],
+    BEL: [["De Bruyne", 7], ["Lukaku", 9], ["Doku", 11], ["Trossard", 17], ["Tielemans", 8]],
+    CRO: [["Modrić", 10], ["Kramarić", 9], ["Perišić", 4], ["Budimir", 17], ["Sučić", 8]],
+    COL: [["J. Rodríguez", 10], ["L. Díaz", 7], ["Borré", 19], ["Córdoba", 11], ["Lerma", 16]],
+    JPN: [["Mitoma", 11], ["Kubo", 20], ["Kamada", 8], ["Asano", 18], ["Endo", 6]],
+    USA: [["Pulisic", 10], ["Balogun", 9], ["Weah", 21], ["McKennie", 8], ["Aaronson", 11]],
+    MAR: [["Ziyech", 7], ["En-Nesyri", 19], ["Hakimi", 2], ["Amrabat", 4], ["Ounahi", 8]],
+    SEN: [["S. Mané", 10], ["I. Sarr", 18], ["Dia", 9], ["I. Gueye", 5], ["N. Jackson", 11]],
+    KOR: [["Son", 7], ["Hwang H-C", 11], ["Lee K-I", 18], ["Cho G-S", 9], ["Hwang I-J", 20]],
+    SUI: [["Shaqiri", 23], ["Embolo", 7], ["Vargas", 17], ["Freuler", 8], ["Rieder", 10]],
+    DIN: [["Eriksen", 10], ["Højlund", 9], ["Damsgaard", 14], ["Hjulmand", 23], ["Wind", 19]],
+    POL: [["Lewandowski", 9], ["Zieliński", 20], ["Świderski", 11], ["Szymański", 16], ["Zalewski", 21]],
+    SRB: [["Mitrović", 9], ["Vlahović", 18], ["Tadić", 10], ["Milinković", 20], ["Kostić", 11]],
+    ECU: [["E. Valencia", 13], ["Plata", 19], ["K. Caicedo", 23], ["K. Páez", 8], ["Rodríguez", 16]],
+    GHA: [["A. Ayew", 10], ["Kudus", 20], ["J. Ayew", 9], ["I. Williams", 19], ["Semenyo", 11]],
+    AUS: [["Duke", 15], ["Goodwin", 11], ["Irvine", 22], ["McGree", 17], ["Boyle", 7]],
+    CAN: [["J. David", 20], ["Larin", 17], ["Buchanan", 11], ["Davies", 19], ["Eustáquio", 7]],
+    NGA: [["Osimhen", 9], ["Lookman", 8], ["Iwobi", 10], ["Chukwueze", 11], ["M. Simon", 17]],
+    KSA: [["Al-Dawsari", 10], ["Al-Shehri", 11], ["Al-Buraikan", 9], ["Kanno", 14], ["Al-Faraj", 7]],
+    PER: [["Lapadula", 9], ["Cueva", 10], ["Carrillo", 18], ["Flores", 20], ["Peña", 11]],
+  };
+  function rosterOf(team) { return ROSTERS[team.code] || [[team.name, 9], [team.name, 10], [team.name, 7], [team.name, 11], [team.name, 8]]; }
+
   // Escudo con los colores del equipo (funciona en cualquier dispositivo)
   function contrast(hex) {
     const n = parseInt(hex.slice(1), 16);
@@ -112,6 +147,7 @@
   const trail = [];
   const keeper = { x: 0, y: 0, cx: 0, cy: 0, base: 0, color: "#ffd34d" };
   let shooterColor = "#fff";
+  let shooterNum = 10;
   let aim = { x: 0, y: 0, active: false, dragging: false };
   let betweenTimer = 0;
   let pendingProceed = null;
@@ -155,18 +191,34 @@
   }
   // Tribuna de fondo (loop) que acompaña el partido
   function startCrowd() {
-    if (muted) return;
     const c = $("snd-crowd"); if (!c) return;
-    c.volume = 0.32; const p = c.play(); if (p && p.catch) p.catch(() => {});
+    c.volume = 0.14; c.muted = muted;
+    if (!muted) { const p = c.play(); if (p && p.catch) p.catch(() => {}); }
   }
   function stopCrowd() { const c = $("snd-crowd"); if (c) c.pause(); }
-  function sndKick() { beep(160, 0.08, "square", 0.22); noiseBurst(0.06, 0.12, 2200, 0.005); }
-  function sndGoal() { // gol real + un toque de silbato
+  function applyMute() {
+    const c = $("snd-crowd"); if (c) c.muted = muted;
+    const g = $("snd-goal"); if (g) g.muted = muted;
+    if (muted) stopCrowd(); else startCrowd();
+  }
+  function sndKick() { beep(160, 0.07, "square", 0.14); noiseBurst(0.05, 0.08, 2200, 0.005); }
+  function sndWhistle() { // pitido del árbitro
+    if (muted) return; const a = audio(); if (!a) return;
+    const o = a.createOscillator(), g = a.createGain(), lfo = a.createOscillator(), lg = a.createGain();
+    o.type = "square"; o.frequency.value = 2150;
+    lfo.frequency.value = 16; lg.gain.value = 130; lfo.connect(lg); lg.connect(o.frequency);
+    o.connect(g); g.connect(a.destination);
+    const n = a.currentTime;
+    g.gain.setValueAtTime(0.0001, n); g.gain.linearRampToValueAtTime(0.10, n + 0.02);
+    g.gain.setValueAtTime(0.10, n + 0.16); g.gain.exponentialRampToValueAtTime(0.0001, n + 0.28);
+    o.start(n); lfo.start(n); o.stop(n + 0.3); lfo.stop(n + 0.3);
+  }
+  function sndGoal() { // gol real
     if (muted) return;
-    const g = $("snd-goal"); if (g) { g.currentTime = 0; g.volume = 0.85; const p = g.play(); if (p && p.catch) p.catch(() => {}); }
+    const g = $("snd-goal"); if (g) { g.currentTime = 0; g.volume = 0.5; const p = g.play(); if (p && p.catch) p.catch(() => {}); }
   }
   function sndSave() { // golpe seco
-    beep(110, 0.16, "sine", 0.32); noiseBurst(0.12, 0.18, 500, 0.005);
+    beep(110, 0.16, "sine", 0.22); noiseBurst(0.12, 0.13, 500, 0.005);
   }
 
   // ── Overlays ─────────────────────────────────────────────────────────────
@@ -257,6 +309,13 @@
   function nextKick() {
     resetBall();
     aim.active = false;
+    const kickerTeam = match.turn === "you" ? match.you : match.opp;
+    const roster = rosterOf(kickerTeam);
+    const idx = (match.turn === "you" ? match.youKicks : match.oppKicks) % roster.length;
+    const taker = roster[idx];
+    shooterNum = taker[1];
+    updateKickerPanel(kickerTeam, taker, match.turn === "you");
+    sndWhistle();
     if (match.turn === "you") {
       keeper.color = match.opp.c1;        // ataja el rival
       shooterColor = match.you.c1;        // pateás vos
@@ -269,6 +328,12 @@
       phase = PHASE.DEFEND_AIM;
       promptText("¡ATAJÁ! 🧤", "Elegí a qué lado te tirás y soltá");
     }
+  }
+  function updateKickerPanel(team, taker, you) {
+    const p = $("kicker-panel");
+    p.innerHTML = `<div class="kp-label">${you ? "PATEÁS VOS" : "PATEA EL RIVAL"}</div>` +
+      `<div class="kp-row">${badge(team, "sm")}<span class="kp-num">${taker[1]}</span><span class="kp-name">${taker[0]}</span></div>`;
+    p.classList.remove("hidden");
   }
 
   function promptText(main, sub) {
@@ -328,34 +393,37 @@
   // ── Impacto ────────────────────────────────────────────────────────────────
   function resolveImpact() {
     const L = layout();
-    const reach = L.goalH * 0.34;
+    const reach = L.goalH * 0.40; // arquero más grande = más difícil
     const inGoal = ball.tx > L.goalLeft && ball.tx < L.goalRight &&
                    ball.ty > L.goalTop && ball.ty < L.goalBottom + L.goalH * 0.05;
-    const saved = Math.hypot(ball.tx - keeper.cx, ball.ty - keeper.cy) < reach;
+    const saved = inGoal && Math.hypot(ball.tx - keeper.cx, ball.ty - keeper.cy) < reach;
     const shooting = phase === PHASE.SHOOT_FLY;
+
+    // Si la atajó, la pelota queda en las manos del arquero (clarísimo)
+    if (saved) { ball.x = keeper.x; ball.y = keeper.y - L.goalH * 0.06; ball.lift = 0; }
 
     if (shooting) {
       match.youKicks++;
-      if (!inGoal) { match.results.you.push("miss"); saveFx("¡AFUERA! 😣"); }
-      else if (!saved) { match.youGoals++; match.results.you.push("goal"); goalFx("¡GOL!", ball.tx, ball.ty); }
-      else { match.results.you.push("miss"); saveFx("¡ATAJÓ! 🧤"); }
+      if (!inGoal) { match.results.you.push("miss"); saveFx("¡AFUERA!"); betweenTimer = 1.4; }
+      else if (saved) { match.results.you.push("miss"); saveFx("¡TE LA ATAJÓ! 🧤"); betweenTimer = 1.6; }
+      else { match.youGoals++; match.results.you.push("goal"); goalFx("¡GOOOL!", ball.tx, ball.ty); betweenTimer = 1.3; }
     } else {
       match.oppKicks++;
-      if (!saved) { match.oppGoals++; match.results.opp.push("goal"); saveFx("GOL RIVAL", false); }
-      else { match.results.opp.push("miss"); goalFx("¡ATAJASTE!", W / 2, L.goalBottom); }
+      if (saved) { match.results.opp.push("miss"); goalFx("¡ATAJASTE! 🧤🔥", W / 2, L.goalBottom); betweenTimer = 1.6; }
+      else { match.oppGoals++; match.results.opp.push("goal"); saveFx("GOL DEL RIVAL"); betweenTimer = 1.4; }
     }
     updateMatchHUD();
-    phase = PHASE.BETWEEN; betweenTimer = 1.0;
+    phase = PHASE.BETWEEN;
   }
 
   function goalFx(text, x, y) {
-    flash = { a: 0.4, color: "#22c55e" };
-    popups.push({ text, t: 0.95, color: "#fff", x, y });
+    flash = { a: 0.55, color: "#22c55e" };
+    popups.push({ text, t: 1.3, color: "#eafff0", x, y });
     spawnConfetti(x, y); sndGoal();
   }
   function saveFx(text) {
-    flash = { a: 0.5, color: "#ef4444" }; shake = 13;
-    popups.push({ text, t: 0.95, color: "#ef4444", x: W / 2, y: H * 0.42 });
+    flash = { a: 0.6, color: "#ef4444" }; shake = 14;
+    popups.push({ text, t: 1.3, color: "#fff", x: W / 2, y: H * 0.40 });
     sndSave();
   }
 
@@ -386,7 +454,7 @@
   }
 
   function endMatch(winner) {
-    inMatch = false; phase = PHASE.IDLE; hidePrompt(); hide("match-hud");
+    inMatch = false; phase = PHASE.IDLE; hidePrompt(); hide("match-hud"); hide("kicker-panel");
     if (stage === "group") endGroupMatch(winner);
     else endKnockoutMatch(winner);
   }
@@ -650,7 +718,7 @@
   function drawKeeper(L) {
     const reaching = phase === PHASE.SHOOT_FLY || phase === PHASE.DEFEND_FLY || phase === PHASE.BETWEEN;
     const dir = Math.sign(keeper.cx - keeper.base) || 0;
-    const u = L.goalW * 0.058;
+    const u = L.goalW * 0.072;
     const d = reaching ? Math.min(1, Math.abs(keeper.x - keeper.base) / (L.goalW * 0.26)) : 0;
     shadow(keeper.x, L.keeperBase.y + 4, u * 1.5 * (1 + d * 0.8));
     ctx.save(); ctx.translate(keeper.x, keeper.y); ctx.rotate(dir * d * 1.15); ctx.lineCap = "round";
@@ -702,7 +770,7 @@
     ctx.fillStyle = shooterColor; roundRect(-u * 0.74, shoY, u * 1.48, (hipY - shoY) + u * 0.15, u * 0.32); ctx.fill();
     ctx.fillStyle = "rgba(255,255,255,0.12)"; roundRect(-u * 0.74, shoY, u * 0.55, (hipY - shoY) + u * 0.15, u * 0.2); ctx.fill();
     ctx.fillStyle = contrast(shooterColor); ctx.font = `900 ${u * 0.72}px system-ui`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText("10", 0, midY);
+    ctx.fillText(String(shooterNum), 0, midY);
     // Brazos
     ctx.strokeStyle = shooterColor; ctx.lineWidth = u * 0.38;
     ctx.beginPath(); ctx.moveTo(-u * 0.5, shoY + u * 0.2); ctx.lineTo(-u * 1.3, shoY + u * 0.1); ctx.stroke();
@@ -774,11 +842,16 @@
   function drawConfetti() { for (const p of confetti) { ctx.globalAlpha = Math.max(0, Math.min(1, p.life)); ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, p.size, p.size); } ctx.globalAlpha = 1; }
   function drawPopups() {
     for (const p of popups) {
-      const k = 1 - p.t; ctx.save(); ctx.globalAlpha = Math.min(1, p.t * 2);
-      ctx.fillStyle = p.color; ctx.strokeStyle = "rgba(0,0,0,0.4)"; ctx.lineWidth = 6;
-      ctx.font = "900 " + Math.round(Math.min(W, H) * 0.11) + "px system-ui, sans-serif";
+      const k = 1 - p.t; ctx.save(); ctx.globalAlpha = Math.min(1, p.t * 2.2);
+      const px = Math.max(W * 0.3, Math.min(W * 0.7, p.x));
+      const y = p.y - k * 50;
+      const fs = Math.round(Math.min(W, H) * 0.13);
+      ctx.font = "900 " + fs + "px system-ui, sans-serif";
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      const y = p.y - k * 60; ctx.strokeText(p.text, p.x, y); ctx.fillText(p.text, p.x, y); ctx.restore();
+      ctx.lineWidth = fs * 0.14; ctx.strokeStyle = "rgba(0,0,0,0.55)"; ctx.lineJoin = "round";
+      ctx.strokeText(p.text, px, y);
+      ctx.fillStyle = p.color; ctx.fillText(p.text, px, y);
+      ctx.restore();
     }
   }
   function roundRect(x, y, w, h, r) {
@@ -827,7 +900,7 @@
 
   const muteBtn = $("mute-btn");
   const renderMute = () => muteBtn.textContent = muted ? "🔇" : "🔊";
-  muteBtn.addEventListener("click", () => { muted = !muted; localStorage.setItem("penales_muted", muted ? "1" : "0"); renderMute(); if (muted) stopCrowd(); else startCrowd(); });
+  muteBtn.addEventListener("click", () => { muted = !muted; localStorage.setItem("penales_muted", muted ? "1" : "0"); renderMute(); applyMute(); });
   renderMute();
 
   function showStart() {
