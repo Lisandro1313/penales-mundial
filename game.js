@@ -108,7 +108,7 @@
   let bestStage = parseInt(localStorage.getItem("penales_beststage") || "0", 10) || 0;
   let muted = localStorage.getItem("penales_muted") === "1";
 
-  const ball = { x: 0, y: 0, scale: 1, t: 0, sx: 0, sy: 0, tx: 0, ty: 0, lift: 0 };
+  const ball = { x: 0, y: 0, scale: 1, t: 0, sx: 0, sy: 0, tx: 0, ty: 0, lift: 0, spin: 0 };
   const trail = [];
   const keeper = { x: 0, y: 0, cx: 0, cy: 0, base: 0, color: "#ffd34d" };
   let shooterColor = "#fff";
@@ -249,7 +249,7 @@
 
   function resetBall() {
     const L = layout();
-    ball.x = L.spot.x; ball.y = L.spot.y; ball.scale = 1; ball.t = 0; ball.lift = 0;
+    ball.x = L.spot.x; ball.y = L.spot.y; ball.scale = 1; ball.t = 0; ball.lift = 0; ball.spin = 0;
     trail.length = 0;
     keeper.x = L.keeperBase.x; keeper.y = L.keeperBase.y; keeper.base = L.keeperBase.x;
   }
@@ -511,6 +511,7 @@
       ball.y = ball.sy + (ball.ty - ball.sy) * t;
       ball.scale = 1 - 0.55 * t;
       ball.lift = Math.sin(t * Math.PI) * H * 0.10; // arco del disparo
+      ball.spin += dt * 16;
       trail.push({ x: ball.x, y: ball.y - ball.lift, s: ball.scale });
       if (trail.length > 12) trail.shift();
       const kb = layout().keeperBase;
@@ -641,56 +642,74 @@
     bar(L.goalLeft - postW, L.goalTop - postW, L.goalW + postW * 2, postW); // travesaño
   }
   function shadow(x, y, rx) {
-    ctx.save(); ctx.globalAlpha = 0.28; ctx.fillStyle = "#000";
-    ctx.beginPath(); ctx.ellipse(x, y, rx, rx * 0.32, 0, 0, 7); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.globalAlpha = 0.26; ctx.fillStyle = "#000";
+    ctx.beginPath(); ctx.ellipse(x, y, rx, rx * 0.3, 0, 0, 7); ctx.fill(); ctx.restore();
   }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+
   function drawKeeper(L) {
     const reaching = phase === PHASE.SHOOT_FLY || phase === PHASE.DEFEND_FLY || phase === PHASE.BETWEEN;
     const dir = Math.sign(keeper.cx - keeper.base) || 0;
-    const u = L.goalW * 0.05;            // unidad de tamaño
-    const bodyH = u * 2.0, bodyW = u * 1.1;
-    shadow(keeper.x, L.keeperBase.y + 4, bodyW * 1.4);
-    ctx.save(); ctx.translate(keeper.x, keeper.y);
-    if (reaching && dir !== 0) ctx.rotate(dir * 0.55);
-    // Piernas
-    ctx.strokeStyle = "#101826"; ctx.lineWidth = u * 0.42; ctx.lineCap = "round";
-    ctx.beginPath(); ctx.moveTo(-u * 0.3, 0); ctx.lineTo(-u * 0.4, u * 0.9); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(u * 0.3, 0); ctx.lineTo(u * 0.4, u * 0.9); ctx.stroke();
-    // Torso (camiseta)
-    ctx.fillStyle = keeper.color; roundRect(-bodyW / 2, -bodyH, bodyW, bodyH, u * 0.4); ctx.fill();
-    ctx.fillStyle = "rgba(0,0,0,0.12)"; ctx.fillRect(-bodyW / 2, -bodyH * 0.5, bodyW, bodyH * 0.5);
+    const u = L.goalW * 0.058;
+    const d = reaching ? Math.min(1, Math.abs(keeper.x - keeper.base) / (L.goalW * 0.26)) : 0;
+    shadow(keeper.x, L.keeperBase.y + 4, u * 1.5 * (1 + d * 0.8));
+    ctx.save(); ctx.translate(keeper.x, keeper.y); ctx.rotate(dir * d * 1.15); ctx.lineCap = "round";
+    const hipY = -u * 1.5, shoY = -u * 2.45, headY = -u * 3.05, midY = (shoY + hipY) / 2;
+    const footX = lerp(u * 0.5, u * 0.2, d);
+    // Piernas + botines
+    ctx.strokeStyle = "#0e1422"; ctx.lineWidth = u * 0.5;
+    ctx.beginPath(); ctx.moveTo(-u * 0.25, hipY); ctx.lineTo(-footX, 0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(u * 0.25, hipY); ctx.lineTo(footX, 0); ctx.stroke();
+    ctx.fillStyle = "#111";
+    ctx.beginPath(); ctx.ellipse(-footX, 0, u * 0.3, u * 0.16, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(footX, 0, u * 0.3, u * 0.16, 0, 0, 7); ctx.fill();
+    // Short
+    ctx.fillStyle = "#0c2417"; roundRect(-u * 0.72, hipY - u * 0.1, u * 1.44, u * 0.8, u * 0.2); ctx.fill();
+    // Camiseta
+    ctx.fillStyle = keeper.color; roundRect(-u * 0.8, shoY, u * 1.6, (hipY - shoY) + u * 0.15, u * 0.35); ctx.fill();
+    ctx.fillStyle = "rgba(0,0,0,0.10)"; roundRect(-u * 0.8, midY, u * 1.6, (hipY - midY) + u * 0.15, u * 0.2); ctx.fill();
+    ctx.fillStyle = contrast(keeper.color); ctx.font = `900 ${u * 0.8}px system-ui`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("1", 0, midY);
     // Brazos + guantes
-    ctx.strokeStyle = keeper.color; ctx.lineWidth = u * 0.5;
-    const armY = -bodyH * 0.78, spread = reaching ? u * 2.4 : u * 1.2, lift = reaching ? u * 1.3 : u * 0.3;
-    ctx.beginPath(); ctx.moveTo(0, armY); ctx.lineTo(-spread, armY - lift); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, armY); ctx.lineTo(spread, armY - lift); ctx.stroke();
-    ctx.fillStyle = "#1ad17a";
-    ctx.beginPath(); ctx.arc(-spread, armY - lift, u * 0.38, 0, 7); ctx.fill();
-    ctx.beginPath(); ctx.arc(spread, armY - lift, u * 0.38, 0, 7); ctx.fill();
-    // Cabeza
-    ctx.fillStyle = "#f1c27d"; ctx.beginPath(); ctx.arc(0, -bodyH - u * 0.45, u * 0.55, 0, 7); ctx.fill();
-    ctx.fillStyle = "#3a2616"; ctx.beginPath(); ctx.arc(0, -bodyH - u * 0.65, u * 0.55, Math.PI, 0); ctx.fill();
+    ctx.lineWidth = u * 0.42;
+    for (const s of [-1, 1]) {
+      const hx = lerp(s * u * 1.25, s * u * 0.35, d), hy = lerp(-u * 1.95, -u * 3.6, d);
+      ctx.strokeStyle = keeper.color;
+      ctx.beginPath(); ctx.moveTo(s * u * 0.55, shoY + u * 0.15); ctx.lineTo(hx, hy); ctx.stroke();
+      ctx.fillStyle = "#16c47a"; ctx.beginPath(); ctx.arc(hx, hy, u * 0.33, 0, 7); ctx.fill();
+    }
+    // Cabeza + pelo
+    ctx.fillStyle = "#f1c27d"; ctx.beginPath(); ctx.arc(0, headY, u * 0.5, 0, 7); ctx.fill();
+    ctx.fillStyle = "#2a1a0e"; ctx.beginPath(); ctx.arc(0, headY - u * 0.12, u * 0.5, Math.PI * 1.04, Math.PI * 1.96); ctx.fill();
     ctx.restore();
   }
   function drawShooter(L) {
-    const x = L.spot.x - L.goalW * 0.17, y = L.spot.y;
-    const u = L.goalW * 0.048;
-    const bodyH = u * 1.9, bodyW = u * 1.0;
-    shadow(x, y + 4, bodyW * 1.3);
-    ctx.save(); ctx.translate(x, y);
-    // Piernas (una adelantada, pose de pateo)
-    ctx.strokeStyle = "#101826"; ctx.lineWidth = u * 0.4; ctx.lineCap = "round";
-    ctx.beginPath(); ctx.moveTo(-u * 0.2, 0); ctx.lineTo(-u * 0.5, u * 0.9); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(u * 0.2, 0); ctx.lineTo(u * 0.85, u * 0.5); ctx.stroke();
-    // Torso
-    ctx.fillStyle = shooterColor; roundRect(-bodyW / 2, -bodyH, bodyW, bodyH, u * 0.4); ctx.fill();
-    ctx.fillStyle = "rgba(255,255,255,0.15)"; ctx.fillRect(-bodyW / 2, -bodyH, bodyW * 0.4, bodyH);
-    // Brazo
-    ctx.strokeStyle = shooterColor; ctx.lineWidth = u * 0.42;
-    ctx.beginPath(); ctx.moveTo(0, -bodyH * 0.75); ctx.lineTo(-u * 1.1, -bodyH * 0.5); ctx.stroke();
-    // Cabeza
-    ctx.fillStyle = "#f1c27d"; ctx.beginPath(); ctx.arc(0, -bodyH - u * 0.4, u * 0.5, 0, 7); ctx.fill();
-    ctx.fillStyle = "#23150a"; ctx.beginPath(); ctx.arc(0, -bodyH - u * 0.58, u * 0.5, Math.PI, 0); ctx.fill();
+    const x = L.spot.x - L.goalW * 0.18, y = L.spot.y;
+    const u = L.goalW * 0.052;
+    shadow(x, y + 3, u * 1.3);
+    ctx.save(); ctx.translate(x, y); ctx.lineCap = "round";
+    const hipY = -u * 1.5, shoY = -u * 2.45, headY = -u * 3.0, midY = (shoY + hipY) / 2;
+    // Pierna de apoyo + de pateo (hacia la pelota)
+    ctx.strokeStyle = "#0e1422"; ctx.lineWidth = u * 0.48;
+    ctx.beginPath(); ctx.moveTo(-u * 0.2, hipY); ctx.lineTo(-u * 0.45, 0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(u * 0.1, hipY); ctx.lineTo(u * 0.95, -u * 0.35); ctx.stroke();
+    ctx.fillStyle = "#111";
+    ctx.beginPath(); ctx.ellipse(-u * 0.45, 0, u * 0.3, u * 0.16, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(u * 1.0, -u * 0.38, u * 0.3, u * 0.16, -0.5, 0, 7); ctx.fill();
+    // Short
+    ctx.fillStyle = "rgba(0,0,0,0.55)"; roundRect(-u * 0.64, hipY - u * 0.1, u * 1.28, u * 0.72, u * 0.2); ctx.fill();
+    // Camiseta
+    ctx.fillStyle = shooterColor; roundRect(-u * 0.74, shoY, u * 1.48, (hipY - shoY) + u * 0.15, u * 0.32); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.12)"; roundRect(-u * 0.74, shoY, u * 0.55, (hipY - shoY) + u * 0.15, u * 0.2); ctx.fill();
+    ctx.fillStyle = contrast(shooterColor); ctx.font = `900 ${u * 0.72}px system-ui`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("10", 0, midY);
+    // Brazos
+    ctx.strokeStyle = shooterColor; ctx.lineWidth = u * 0.38;
+    ctx.beginPath(); ctx.moveTo(-u * 0.5, shoY + u * 0.2); ctx.lineTo(-u * 1.3, shoY + u * 0.1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(u * 0.5, shoY + u * 0.2); ctx.lineTo(u * 1.1, shoY - u * 0.5); ctx.stroke();
+    // Cabeza + pelo
+    ctx.fillStyle = "#f1c27d"; ctx.beginPath(); ctx.arc(0, headY, u * 0.46, 0, 7); ctx.fill();
+    ctx.fillStyle = "#1c120a"; ctx.beginPath(); ctx.arc(0, headY - u * 0.1, u * 0.46, Math.PI * 1.04, Math.PI * 1.96); ctx.fill();
     ctx.restore();
   }
   function drawTrail() {
@@ -722,7 +741,7 @@
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ball.x, by, r, 0, 7); ctx.fill();
     // Parches negros (clásicos), recortados al círculo
     ctx.save(); ctx.beginPath(); ctx.arc(ball.x, by, r, 0, 7); ctx.clip();
-    ctx.translate(ball.x, by); ctx.fillStyle = "#1b1d22";
+    ctx.translate(ball.x, by); ctx.rotate(ball.spin); ctx.fillStyle = "#1b1d22";
     pentagon(0, 0, r * 0.34, -Math.PI / 2); ctx.fill();           // central
     for (let i = 0; i < 5; i++) {
       const a = -Math.PI / 2 + i * (Math.PI * 2 / 5);
