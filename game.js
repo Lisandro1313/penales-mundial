@@ -68,10 +68,11 @@
   let bestStage = parseInt(localStorage.getItem("penales_beststage") || "0", 10) || 0;
   let muted = localStorage.getItem("penales_muted") === "1";
 
-  const ball = { x: 0, y: 0, scale: 1, t: 0, sx: 0, sy: 0, tx: 0, ty: 0 };
+  const ball = { x: 0, y: 0, scale: 1, t: 0, sx: 0, sy: 0, tx: 0, ty: 0, lift: 0 };
+  const trail = [];
   const keeper = { x: 0, y: 0, cx: 0, cy: 0, base: 0, color: "#ffd34d" };
   let shooterColor = "#fff";
-  let aim = { x: 0, y: 0, active: false };
+  let aim = { x: 0, y: 0, active: false, dragging: false };
   let betweenTimer = 0;
   let pendingProceed = null;
 
@@ -163,7 +164,8 @@
 
   function resetBall() {
     const L = layout();
-    ball.x = L.spot.x; ball.y = L.spot.y; ball.scale = 1; ball.t = 0;
+    ball.x = L.spot.x; ball.y = L.spot.y; ball.scale = 1; ball.t = 0; ball.lift = 0;
+    trail.length = 0;
     keeper.x = L.keeperBase.x; keeper.y = L.keeperBase.y; keeper.base = L.keeperBase.x;
   }
 
@@ -174,17 +176,21 @@
       keeper.color = match.opp.c1;        // ataja el rival
       shooterColor = match.you.c1;        // pateás vos
       phase = PHASE.SHOOT_AIM;
-      promptText("¡PATEÁ! 🎯");
+      promptText("TU PENAL ⚽", "Arrastrá la mira a un ángulo y soltá");
     } else {
       keeper.color = match.you.c1;        // atajás vos
       shooterColor = match.opp.c1;        // patea el rival
       match.oppTarget = chooseOppShot(layout(), match.round.strength);
       phase = PHASE.DEFEND_AIM;
-      promptText("¡ATAJÁ! 🧤");
+      promptText("¡ATAJÁ! 🧤", "Elegí a qué lado te tirás y soltá");
     }
   }
 
-  function promptText(t) { const p = $("phase-prompt"); p.textContent = t; p.classList.remove("hidden"); }
+  function promptText(main, sub) {
+    const p = $("phase-prompt");
+    p.innerHTML = `<span class="pp-main">${main}</span>` + (sub ? `<span class="pp-sub">${sub}</span>` : "");
+    p.classList.remove("hidden");
+  }
   function hidePrompt() { $("phase-prompt").classList.add("hidden"); }
 
   // ── IA ────────────────────────────────────────────────────────────────────
@@ -350,6 +356,9 @@
       ball.x = ball.sx + (ball.tx - ball.sx) * t;
       ball.y = ball.sy + (ball.ty - ball.sy) * t;
       ball.scale = 1 - 0.55 * t;
+      ball.lift = Math.sin(t * Math.PI) * H * 0.10; // arco del disparo
+      trail.push({ x: ball.x, y: ball.y - ball.lift, s: ball.scale });
+      if (trail.length > 12) trail.shift();
       const kb = layout().keeperBase;
       keeper.x = keeper.base + (keeper.cx - keeper.base) * t;
       keeper.y = kb.y + (keeper.cy - kb.y) * t * 0.9;
@@ -380,6 +389,7 @@
       if (aiming) drawShooter(L);
       if (phase === PHASE.SHOOT_AIM && aim.active) drawAim(L);
       if (phase === PHASE.DEFEND_AIM && aim.active) drawDiveHint(L);
+      drawTrail();
       drawBall();
     }
     drawConfetti(); drawPopups();
@@ -388,63 +398,166 @@
   }
 
   function drawBackground(L) {
-    const sky = ctx.createLinearGradient(0, 0, 0, H);
-    sky.addColorStop(0, "#0e1b3a"); sky.addColorStop(0.5, "#16306b");
-    sky.addColorStop(0.5, "#1f7a3d"); sky.addColorStop(1, "#0f5a2a");
-    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
-    ctx.save(); ctx.globalAlpha = 0.5;
-    for (let i = 0; i < 80; i++) { ctx.fillStyle = COLORS[i % COLORS.length]; ctx.fillRect(i * 97 % W, (i * 53 % (H * 0.18)) + 4, 3, 3); }
-    ctx.restore();
-    ctx.strokeStyle = "rgba(255,255,255,0.06)"; ctx.lineWidth = 2;
-    for (let i = 1; i < 8; i++) { const y = H * 0.5 + (H * 0.5) * (i / 8) * (i / 8); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-    ctx.strokeStyle = "rgba(255,255,255,0.18)"; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.ellipse(W / 2, L.goalBottom + (H - L.goalBottom) * 0.55, L.goalW * 0.62, L.goalH * 0.5, 0, 0, Math.PI * 2); ctx.stroke();
-    ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.beginPath(); ctx.arc(L.spot.x, L.spot.y - 4, 4, 0, Math.PI * 2); ctx.fill();
+    const horizon = L.goalTop - L.goalH * 0.35;
+    // Cielo nocturno
+    const sky = ctx.createLinearGradient(0, 0, 0, horizon);
+    sky.addColorStop(0, "#0a1228"); sky.addColorStop(1, "#1d3a72");
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, horizon);
+    // Reflectores
+    for (const fx of [W * 0.16, W * 0.84]) {
+      const g = ctx.createRadialGradient(fx, 0, 0, fx, 0, H * 0.5);
+      g.addColorStop(0, "rgba(255,255,240,0.22)"); g.addColorStop(1, "rgba(255,255,240,0)");
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H * 0.5);
+    }
+    // Tribuna
+    ctx.fillStyle = "#14213d"; ctx.fillRect(0, 0, W, horizon);
+    for (let r = 0; r < 5; r++) {
+      for (let i = 0; i < 60; i++) {
+        ctx.globalAlpha = 0.5 + (r / 10);
+        ctx.fillStyle = COLORS[(i + r) % COLORS.length];
+        ctx.fillRect((i * (W / 60) + r * 7) % W, horizon * (0.25 + r * 0.14), 2.5, 2.5);
+      }
+    }
+    ctx.globalAlpha = 1;
+    // Césped con franjas
+    const fieldTop = horizon;
+    const g2 = ctx.createLinearGradient(0, fieldTop, 0, H);
+    g2.addColorStop(0, "#1f8a43"); g2.addColorStop(1, "#0c5c28");
+    ctx.fillStyle = g2; ctx.fillRect(0, fieldTop, W, H - fieldTop);
+    for (let i = 0; i < 9; i++) {
+      const y0 = fieldTop + (H - fieldTop) * (i / 9) * (i / 9);
+      const y1 = fieldTop + (H - fieldTop) * ((i + 1) / 9) * ((i + 1) / 9);
+      if (i % 2 === 0) { ctx.fillStyle = "rgba(255,255,255,0.045)"; ctx.fillRect(0, y0, W, y1 - y0); }
+    }
+    // Área (trapecio) + arco + punto
+    ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 3;
+    const boxBot = L.goalBottom + (H - L.goalBottom) * 0.7;
+    ctx.beginPath();
+    ctx.moveTo(W / 2 - L.goalW * 0.75, boxBot);
+    ctx.lineTo(W / 2 - L.goalW * 0.62, L.goalBottom + 4);
+    ctx.lineTo(W / 2 + L.goalW * 0.62, L.goalBottom + 4);
+    ctx.lineTo(W / 2 + L.goalW * 0.75, boxBot);
+    ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(W / 2, L.spot.y - 4, L.goalW * 0.22, L.goalH * 0.12, 0, Math.PI, 0); ctx.stroke();
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(L.spot.x, L.spot.y - 4, 4, 0, 7); ctx.fill();
+    // Viñeta
+    const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.75);
+    vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,0.45)");
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
   }
   function drawGoal(L) {
-    const postW = Math.max(5, L.goalW * 0.018);
-    ctx.strokeStyle = "rgba(255,255,255,0.22)"; ctx.lineWidth = 1;
-    const cols = 14, rows = 8;
+    const postW = Math.max(6, L.goalW * 0.02);
+    const depth = L.goalH * 0.30; // profundidad de la red
+    const bx0 = L.goalLeft + depth, bx1 = L.goalRight - depth;
+    const by0 = L.goalTop - depth * 0.6, by1 = L.goalBottom - depth * 0.25;
+    // Fondo de la red (panel trasero)
+    ctx.fillStyle = "rgba(10,20,40,0.35)";
+    ctx.fillRect(bx0, by0, bx1 - bx0, by1 - by0);
+    // Líneas que conectan frente y fondo (efecto 3D)
+    ctx.strokeStyle = "rgba(255,255,255,0.18)"; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(L.goalLeft, L.goalTop); ctx.lineTo(bx0, by0);
+    ctx.moveTo(L.goalRight, L.goalTop); ctx.lineTo(bx1, by0);
+    ctx.moveTo(L.goalLeft, L.goalBottom); ctx.lineTo(bx0, by1);
+    ctx.moveTo(L.goalRight, L.goalBottom); ctx.lineTo(bx1, by1);
+    ctx.stroke();
+    // Malla del fondo
+    ctx.strokeStyle = "rgba(255,255,255,0.12)";
+    for (let i = 1; i < 10; i++) { const x = bx0 + ((bx1 - bx0) * i) / 10; ctx.beginPath(); ctx.moveTo(x, by0); ctx.lineTo(x, by1); ctx.stroke(); }
+    for (let j = 1; j < 6; j++) { const y = by0 + ((by1 - by0) * j) / 6; ctx.beginPath(); ctx.moveTo(bx0, y); ctx.lineTo(bx1, y); ctx.stroke(); }
+    // Malla del frente
+    ctx.strokeStyle = "rgba(255,255,255,0.28)";
+    const cols = 16, rows = 9;
     for (let i = 0; i <= cols; i++) { const x = L.goalLeft + (L.goalW * i) / cols; ctx.beginPath(); ctx.moveTo(x, L.goalTop); ctx.lineTo(x, L.goalBottom); ctx.stroke(); }
     for (let j = 0; j <= rows; j++) { const y = L.goalTop + (L.goalH * j) / rows; ctx.beginPath(); ctx.moveTo(L.goalLeft, y); ctx.lineTo(L.goalRight, y); ctx.stroke(); }
-    ctx.fillStyle = "#f5f7fb";
-    ctx.fillRect(L.goalLeft - postW, L.goalTop - postW, postW, L.goalH + postW);
-    ctx.fillRect(L.goalRight, L.goalTop - postW, postW, L.goalH + postW);
-    ctx.fillRect(L.goalLeft - postW, L.goalTop - postW, L.goalW + postW * 2, postW);
+    // Postes con sombreado
+    function post(x, y, w, h) {
+      const g = ctx.createLinearGradient(x, 0, x + w, 0);
+      g.addColorStop(0, "#ffffff"); g.addColorStop(1, "#c4ccd8");
+      ctx.fillStyle = g; roundRect(x, y, w, h, w * 0.4); ctx.fill();
+    }
+    post(L.goalLeft - postW, L.goalTop - postW, postW, L.goalH + postW);
+    post(L.goalRight, L.goalTop - postW, postW, L.goalH + postW);
+    post(L.goalLeft - postW, L.goalTop - postW, L.goalW + postW * 2, postW);
+  }
+  function shadow(x, y, rx) {
+    ctx.save(); ctx.globalAlpha = 0.28; ctx.fillStyle = "#000";
+    ctx.beginPath(); ctx.ellipse(x, y, rx, rx * 0.32, 0, 0, 7); ctx.fill(); ctx.restore();
   }
   function drawKeeper(L) {
     const reaching = phase === PHASE.SHOOT_FLY || phase === PHASE.DEFEND_FLY || phase === PHASE.BETWEEN;
     const dir = Math.sign(keeper.cx - keeper.base) || 0;
-    const bodyH = L.goalH * 0.42, bodyW = L.goalW * 0.085;
+    const u = L.goalW * 0.05;            // unidad de tamaño
+    const bodyH = u * 2.0, bodyW = u * 1.1;
+    shadow(keeper.x, L.keeperBase.y + 4, bodyW * 1.4);
     ctx.save(); ctx.translate(keeper.x, keeper.y);
-    if (reaching && dir !== 0) ctx.rotate(dir * 0.5);
-    ctx.fillStyle = keeper.color; roundRect(-bodyW / 2, -bodyH, bodyW, bodyH, 6); ctx.fill();
-    ctx.fillStyle = "#f1c27d"; ctx.beginPath(); ctx.arc(0, -bodyH - bodyW * 0.5, bodyW * 0.55, 0, 7); ctx.fill();
-    ctx.strokeStyle = keeper.color; ctx.lineWidth = bodyW * 0.45; ctx.lineCap = "round";
-    const armY = -bodyH * 0.75, spread = reaching ? bodyW * 2.2 : bodyW * 1.1, lift = bodyW * (reaching ? 1.2 : 0.2);
+    if (reaching && dir !== 0) ctx.rotate(dir * 0.55);
+    // Piernas
+    ctx.strokeStyle = "#101826"; ctx.lineWidth = u * 0.42; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(-u * 0.3, 0); ctx.lineTo(-u * 0.4, u * 0.9); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(u * 0.3, 0); ctx.lineTo(u * 0.4, u * 0.9); ctx.stroke();
+    // Torso (camiseta)
+    ctx.fillStyle = keeper.color; roundRect(-bodyW / 2, -bodyH, bodyW, bodyH, u * 0.4); ctx.fill();
+    ctx.fillStyle = "rgba(0,0,0,0.12)"; ctx.fillRect(-bodyW / 2, -bodyH * 0.5, bodyW, bodyH * 0.5);
+    // Brazos + guantes
+    ctx.strokeStyle = keeper.color; ctx.lineWidth = u * 0.5;
+    const armY = -bodyH * 0.78, spread = reaching ? u * 2.4 : u * 1.2, lift = reaching ? u * 1.3 : u * 0.3;
     ctx.beginPath(); ctx.moveTo(0, armY); ctx.lineTo(-spread, armY - lift); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(0, armY); ctx.lineTo(spread, armY - lift); ctx.stroke();
     ctx.fillStyle = "#1ad17a";
-    ctx.beginPath(); ctx.arc(-spread, armY - lift, bodyW * 0.32, 0, 7); ctx.fill();
-    ctx.beginPath(); ctx.arc(spread, armY - lift, bodyW * 0.32, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(-spread, armY - lift, u * 0.38, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(spread, armY - lift, u * 0.38, 0, 7); ctx.fill();
+    // Cabeza
+    ctx.fillStyle = "#f1c27d"; ctx.beginPath(); ctx.arc(0, -bodyH - u * 0.45, u * 0.55, 0, 7); ctx.fill();
+    ctx.fillStyle = "#3a2616"; ctx.beginPath(); ctx.arc(0, -bodyH - u * 0.65, u * 0.55, Math.PI, 0); ctx.fill();
     ctx.restore();
   }
   function drawShooter(L) {
-    const x = L.spot.x - L.goalW * 0.16, y = L.spot.y;
-    const bodyH = L.goalH * 0.4, bodyW = L.goalW * 0.075;
+    const x = L.spot.x - L.goalW * 0.17, y = L.spot.y;
+    const u = L.goalW * 0.048;
+    const bodyH = u * 1.9, bodyW = u * 1.0;
+    shadow(x, y + 4, bodyW * 1.3);
     ctx.save(); ctx.translate(x, y);
-    ctx.fillStyle = shooterColor; roundRect(-bodyW / 2, -bodyH, bodyW, bodyH, 6); ctx.fill();
-    ctx.fillStyle = "#f1c27d"; ctx.beginPath(); ctx.arc(0, -bodyH - bodyW * 0.5, bodyW * 0.52, 0, 7); ctx.fill();
+    // Piernas (una adelantada, pose de pateo)
+    ctx.strokeStyle = "#101826"; ctx.lineWidth = u * 0.4; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(-u * 0.2, 0); ctx.lineTo(-u * 0.5, u * 0.9); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(u * 0.2, 0); ctx.lineTo(u * 0.85, u * 0.5); ctx.stroke();
+    // Torso
+    ctx.fillStyle = shooterColor; roundRect(-bodyW / 2, -bodyH, bodyW, bodyH, u * 0.4); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.15)"; ctx.fillRect(-bodyW / 2, -bodyH, bodyW * 0.4, bodyH);
+    // Brazo
+    ctx.strokeStyle = shooterColor; ctx.lineWidth = u * 0.42;
+    ctx.beginPath(); ctx.moveTo(0, -bodyH * 0.75); ctx.lineTo(-u * 1.1, -bodyH * 0.5); ctx.stroke();
+    // Cabeza
+    ctx.fillStyle = "#f1c27d"; ctx.beginPath(); ctx.arc(0, -bodyH - u * 0.4, u * 0.5, 0, 7); ctx.fill();
+    ctx.fillStyle = "#23150a"; ctx.beginPath(); ctx.arc(0, -bodyH - u * 0.58, u * 0.5, Math.PI, 0); ctx.fill();
     ctx.restore();
+  }
+  function drawTrail() {
+    for (let i = 0; i < trail.length; i++) {
+      const p = trail[i];
+      ctx.globalAlpha = (i / trail.length) * 0.35;
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(4, W * 0.03 * p.s) * 0.8, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
   function drawBall() {
     const r = Math.max(7, (W * 0.03) * ball.scale);
+    const by = ball.y - ball.lift;
     ctx.save();
-    ctx.globalAlpha = 0.25; ctx.fillStyle = "#000"; ctx.beginPath(); ctx.ellipse(ball.x, ball.y + r * 0.7, r, r * 0.4, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(ball.x, ball.y, r, 0, 7); ctx.fill();
-    ctx.strokeStyle = "#222"; ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.fillStyle = "#222"; ctx.beginPath();
-    for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * 1.2566; const px = ball.x + Math.cos(a) * r * 0.42, py = ball.y + Math.sin(a) * r * 0.42; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    // Sombra en el piso (se achica cuando la pelota sube)
+    const sh = Math.max(0.08, 1 - ball.lift / (H * 0.12));
+    ctx.globalAlpha = 0.22 * sh; ctx.fillStyle = "#000";
+    ctx.beginPath(); ctx.ellipse(ball.x, ball.y + r * 0.5, r * sh, r * 0.35 * sh, 0, 0, 7); ctx.fill();
+    ctx.globalAlpha = 1;
+    // Pelota
+    const g = ctx.createRadialGradient(ball.x - r * 0.3, by - r * 0.3, r * 0.2, ball.x, by, r);
+    g.addColorStop(0, "#ffffff"); g.addColorStop(1, "#cfd6e0");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ball.x, by, r, 0, 7); ctx.fill();
+    ctx.strokeStyle = "#1a1a1a"; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = "#1a1a1a"; ctx.beginPath();
+    for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * 1.2566; const px = ball.x + Math.cos(a) * r * 0.4, py = by + Math.sin(a) * r * 0.4; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
     ctx.closePath(); ctx.fill(); ctx.restore();
   }
   function drawAim(L) {
@@ -479,15 +592,24 @@
 
   // ── Input ────────────────────────────────────────────────────────────────
   function pos(e) { const r = canvas.getBoundingClientRect(); const t = e.touches ? e.touches[0] : e; return { x: t.clientX - r.left, y: t.clientY - r.top }; }
+  const isAimPhase = () => phase === PHASE.SHOOT_AIM || phase === PHASE.DEFEND_AIM;
   canvas.addEventListener("pointerdown", (e) => {
     audio();
-    const p = pos(e);
-    if (phase === PHASE.SHOOT_AIM) playerShoot(p.x, p.y);
-    else if (phase === PHASE.DEFEND_AIM) playerDefend(p.x, p.y);
+    if (!isAimPhase()) return;
+    const p = pos(e); aim.x = p.x; aim.y = p.y; aim.active = true; aim.dragging = true;
   });
   canvas.addEventListener("pointermove", (e) => {
-    if (phase === PHASE.SHOOT_AIM || phase === PHASE.DEFEND_AIM) { const p = pos(e); aim.x = p.x; aim.y = p.y; aim.active = true; }
+    if (!isAimPhase()) return;
+    const p = pos(e); aim.x = p.x; aim.y = p.y; aim.active = true;
   });
+  function commitAim() {
+    if (!isAimPhase() || !aim.active) return;
+    aim.dragging = false;
+    if (phase === PHASE.SHOOT_AIM) playerShoot(aim.x, aim.y);
+    else playerDefend(aim.x, aim.y);
+  }
+  canvas.addEventListener("pointerup", commitAim);
+  canvas.addEventListener("pointercancel", () => { aim.dragging = false; });
 
   // ── Botones ──────────────────────────────────────────────────────────────
   $("play-btn").addEventListener("click", () => { audio(); buildTeamGrid(); showOnly("team-screen"); });

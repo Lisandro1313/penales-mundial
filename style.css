@@ -145,18 +145,32 @@ canvas {
 /* ── Prompt central ── */
 #phase-prompt {
   position: fixed;
-  top: 18%; left: 0; right: 0;
+  top: 14%; left: 0; right: 0;
   z-index: 6;
-  text-align: center;
-  font-size: clamp(22px, 7vw, 40px);
-  font-weight: 900;
-  color: #fff;
-  text-shadow: 0 3px 14px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   pointer-events: none;
-  animation: pulse 0.9s ease-in-out infinite;
 }
 #phase-prompt.hidden { display: none; }
-@keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+.pp-main {
+  font-size: clamp(26px, 8vw, 46px);
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 3px 16px rgba(0,0,0,0.7);
+  animation: pulse 0.9s ease-in-out infinite;
+}
+.pp-sub {
+  font-size: clamp(13px, 3.8vw, 17px);
+  font-weight: 700;
+  color: #fff;
+  background: rgba(7,12,30,0.6);
+  border: 1px solid rgba(255,255,255,0.14);
+  padding: 6px 14px;
+  border-radius: 999px;
+}
+@keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
 
 /* ── Grilla de equipos ── */
 #team-grid {
