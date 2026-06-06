@@ -47,7 +47,7 @@
   <!-- Selección de equipo -->
   <div class="overlay hidden" id="team-screen">
     <h1 style="font-size:clamp(24px,7vw,40px)">Elegí tu selección 🌍</h1>
-    <p>Vas a representar a tu país en el Mundial 2026.</p>
+    <p>Tocá un equipo de cualquier grupo. Jugás la fase de grupos y, si quedás entre los 2 primeros, pasás a octavos.</p>
     <div id="team-grid"></div>
   </div>
 
@@ -69,6 +69,14 @@
     <div class="hint">👆 Tocá los ángulos al patear · tocá dónde tirarte al atajar</div>
   </div>
 
+  <!-- Tabla de posiciones del grupo -->
+  <div class="overlay hidden" id="group-screen">
+    <div class="mi-round" id="gs-title">GRUPO A</div>
+    <table class="gtable" id="gs-table"></table>
+    <p class="sub" id="gs-msg"></p>
+    <button class="btn" id="gs-btn">CONTINUAR</button>
+  </div>
+
   <!-- Resultado del partido -->
   <div class="overlay hidden" id="result-screen">
     <h1 id="result-title">¡GANASTE!</h1>
@@ -84,6 +92,9 @@
     <p id="champ-team"></p>
     <button class="btn" id="champ-btn">🎉 JUGAR DE NUEVO</button>
   </div>
+
+  <audio id="snd-crowd" src="sounds/crowd.mp3" loop preload="auto"></audio>
+  <audio id="snd-goal" src="sounds/goal.mp3" preload="auto"></audio>
 
   <script src="game.js"></script>
 </body>

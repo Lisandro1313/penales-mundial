@@ -19,7 +19,30 @@
     { name: "Colombia", code: "COL", c1: "#fcd116", c2: "#1e3a8a" },
     { name: "Japón", code: "JPN", c1: "#1a3aa0", c2: "#ffffff" },
     { name: "EE.UU.", code: "USA", c1: "#e8ebf0", c2: "#1e3a8a" },
+    { name: "Marruecos", code: "MAR", c1: "#b81d24", c2: "#1f7a3d" },
+    { name: "Senegal", code: "SEN", c1: "#1f9d55", c2: "#ffd400" },
+    { name: "Corea", code: "KOR", c1: "#e8ebf0", c2: "#c8102e" },
+    { name: "Suiza", code: "SUI", c1: "#d52b1e", c2: "#ffffff" },
+    { name: "Dinamarca", code: "DIN", c1: "#c8102e", c2: "#ffffff" },
+    { name: "Polonia", code: "POL", c1: "#eef1f6", c2: "#dc143c" },
+    { name: "Serbia", code: "SRB", c1: "#c8102e", c2: "#1a3aa0" },
+    { name: "Ecuador", code: "ECU", c1: "#ffd400", c2: "#1a3aa0" },
+    { name: "Ghana", code: "GHA", c1: "#2a2a2a", c2: "#ce1126" },
+    { name: "Australia", code: "AUS", c1: "#ffd400", c2: "#1f7a3d" },
+    { name: "Canadá", code: "CAN", c1: "#c8102e", c2: "#ffffff" },
+    { name: "Nigeria", code: "NGA", c1: "#1f9d55", c2: "#ffffff" },
+    { name: "Arabia", code: "KSA", c1: "#1f7a3d", c2: "#ffffff" },
+    { name: "Perú", code: "PER", c1: "#d91023", c2: "#ffffff" },
   ];
+  const GROUP_NAMES = ["A", "B", "C", "D", "E", "F", "G", "H"];
+  let GROUPS = []; // se arma al empezar
+
+  function buildGroups() {
+    const idx = TEAMS.map((_, i) => i);
+    for (let s = idx.length - 1; s > 0; s--) { const j = (Math.random() * (s + 1)) | 0;[idx[s], idx[j]] = [idx[j], idx[s]]; }
+    GROUPS = [];
+    for (let g = 0; g < 8; g++) GROUPS.push(idx.slice(g * 4, g * 4 + 4).map((k) => TEAMS[k]));
+  }
 
   // Escudo con los colores del equipo (funciona en cualquier dispositivo)
   function contrast(hex) {
@@ -70,9 +93,16 @@
   let inMatch = false;
 
   let yourTeam = null;
-  let bracket = [];      // 4 equipos rivales
+  let bracket = [];      // 4 equipos rivales (eliminatorias)
   let roundIdx = 0;
   let match = null;
+  // Fase de grupos
+  let stage = "group";   // "group" | "knockout"
+  let groupName = "A";
+  let groupTeams = [];   // 4 equipos del grupo (incluye el tuyo)
+  let groupSchedule = []; // [{rival, other:[t,t]}] x3 fechas
+  let groupTable = [];   // [{team, pts, gf, ga}]
+  let matchday = 0;
 
   let trophies = parseInt(localStorage.getItem("penales_trophies") || "0", 10) || 0;
   let bestStage = parseInt(localStorage.getItem("penales_beststage") || "0", 10) || 0;
@@ -123,10 +153,17 @@
     g.gain.exponentialRampToValueAtTime(0.001, now + dur);
     src.start(now); src.stop(now + dur);
   }
+  // Tribuna de fondo (loop) que acompaña el partido
+  function startCrowd() {
+    if (muted) return;
+    const c = $("snd-crowd"); if (!c) return;
+    c.volume = 0.32; const p = c.play(); if (p && p.catch) p.catch(() => {});
+  }
+  function stopCrowd() { const c = $("snd-crowd"); if (c) c.pause(); }
   function sndKick() { beep(160, 0.08, "square", 0.22); noiseBurst(0.06, 0.12, 2200, 0.005); }
-  function sndGoal() { // ovación de la hinchada + silbato
-    noiseBurst(0.9, 0.28, 1500, 0.12);
-    beep(900, 0.18, "square", 0.10); setTimeout(() => beep(1320, 0.22, "square", 0.10), 110);
+  function sndGoal() { // gol real + un toque de silbato
+    if (muted) return;
+    const g = $("snd-goal"); if (g) { g.currentTime = 0; g.volume = 0.85; const p = g.play(); if (p && p.catch) p.catch(() => {}); }
   }
   function sndSave() { // golpe seco
     beep(110, 0.16, "sine", 0.32); noiseBurst(0.12, 0.18, 500, 0.005);
@@ -137,36 +174,58 @@
   const show = (id) => $(id).classList.remove("hidden");
   const hide = (id) => $(id).classList.add("hidden");
   function showOnly(id) {
-    ["start-screen", "team-screen", "match-screen", "result-screen", "champion-screen"].forEach(hide);
+    ["start-screen", "team-screen", "match-screen", "group-screen", "result-screen", "champion-screen"].forEach(hide);
     if (id) show(id);
   }
 
-  // ── Construir grilla de equipos ──────────────────────────────────────────
+  // ── Construir grilla de equipos (por grupos) ──────────────────────────────
   function buildTeamGrid() {
     const grid = $("team-grid");
     grid.innerHTML = "";
-    TEAMS.forEach((t, i) => {
-      const b = document.createElement("button");
-      b.className = "team-btn";
-      b.innerHTML = badge(t, "md") + `<span class="tb-name">${t.name}</span>`;
-      b.addEventListener("click", () => { audio(); pickTeam(i); });
-      grid.appendChild(b);
+    GROUPS.forEach((teams, gi) => {
+      const block = document.createElement("div");
+      block.className = "group-block";
+      block.innerHTML = `<div class="group-title">GRUPO ${GROUP_NAMES[gi]}</div>`;
+      const row = document.createElement("div");
+      row.className = "group-row";
+      teams.forEach((t) => {
+        const b = document.createElement("button");
+        b.className = "team-btn";
+        b.innerHTML = badge(t, "md") + `<span class="tb-name">${t.name}</span>`;
+        b.addEventListener("click", () => { audio(); startCrowd(); pickTeam(t, gi); });
+        row.appendChild(b);
+      });
+      block.appendChild(row);
+      grid.appendChild(block);
     });
   }
 
-  function pickTeam(i) {
-    yourTeam = TEAMS[i];
-    // Sortear 4 rivales distintos
-    const pool = TEAMS.map((_, k) => k).filter((k) => k !== i);
-    for (let s = pool.length - 1; s > 0; s--) { const j = (Math.random() * (s + 1)) | 0;[pool[s], pool[j]] = [pool[j], pool[s]]; }
-    bracket = pool.slice(0, 4).map((k) => TEAMS[k]);
-    roundIdx = 0;
+  function pickTeam(team, gi) {
+    yourTeam = team;
+    groupName = GROUP_NAMES[gi];
+    groupTeams = GROUPS[gi];
+    const rivals = groupTeams.filter((t) => t !== team);
+    // Fixture round-robin (vos jugás contra cada rival; el otro partido se simula)
+    groupSchedule = [
+      { rival: rivals[0], other: [rivals[1], rivals[2]] },
+      { rival: rivals[1], other: [rivals[2], rivals[0]] },
+      { rival: rivals[2], other: [rivals[0], rivals[1]] },
+    ];
+    groupTable = groupTeams.map((t) => ({ team: t, pts: 0, gf: 0, ga: 0 }));
+    matchday = 0;
+    stage = "group";
     showMatchIntro();
   }
 
+  function rowOf(team) { return groupTable.find((r) => r.team === team); }
+  function currentOpp() { return stage === "group" ? groupSchedule[matchday].rival : bracket[roundIdx]; }
+  function currentTitle() { return stage === "group" ? `GRUPO ${groupName} · FECHA ${matchday + 1}` : ROUNDS[roundIdx].name; }
+  function currentShort() { return stage === "group" ? `GRUPO ${groupName}` : ROUNDS[roundIdx].short; }
+  function currentStrength() { return stage === "group" ? 0.34 + matchday * 0.04 : ROUNDS[roundIdx].strength; }
+
   function showMatchIntro() {
-    const r = ROUNDS[roundIdx], opp = bracket[roundIdx];
-    $("mi-round").textContent = r.name;
+    const opp = currentOpp();
+    $("mi-round").textContent = currentTitle();
     $("mi-you-flag").innerHTML = badge(yourTeam, "lg"); $("mi-you-name").textContent = yourTeam.name;
     $("mi-opp-flag").innerHTML = badge(opp, "lg"); $("mi-opp-name").textContent = opp.name;
     showOnly("match-screen");
@@ -175,9 +234,8 @@
 
   // ── Iniciar partido (tanda) ──────────────────────────────────────────────
   function startMatch() {
-    const opp = bracket[roundIdx];
     match = {
-      round: ROUNDS[roundIdx], opp, you: yourTeam,
+      round: { strength: currentStrength(), short: currentShort() }, opp: currentOpp(), you: yourTeam,
       youGoals: 0, oppGoals: 0, youKicks: 0, oppKicks: 0,
       results: { you: [], opp: [] }, sudden: false, turn: "you", oppTarget: null,
     };
@@ -329,15 +387,22 @@
 
   function endMatch(winner) {
     inMatch = false; phase = PHASE.IDLE; hidePrompt(); hide("match-hud");
-    const reached = roundIdx + 1;
+    if (stage === "group") endGroupMatch(winner);
+    else endKnockoutMatch(winner);
+  }
+
+  // ── Eliminatorias ──────────────────────────────────────────────────────────
+  function endKnockoutMatch(winner) {
     if (winner === "you") {
-      if (reached > bestStage) { bestStage = reached; localStorage.setItem("penales_beststage", String(bestStage)); }
+      const reached = roundIdx + 1;
       if (roundIdx === ROUNDS.length - 1) {
+        if (4 > bestStage) { bestStage = 4; localStorage.setItem("penales_beststage", "4"); }
         trophies++; localStorage.setItem("penales_trophies", String(trophies));
         $("champ-flag").innerHTML = badge(yourTeam, "lg");
         $("champ-team").textContent = `${yourTeam.name} se consagra campeón del Mundial 2026`;
         showOnly("champion-screen"); spawnConfetti(W / 2, H * 0.4); sndGoal();
       } else {
+        if (reached > bestStage) { bestStage = reached; localStorage.setItem("penales_beststage", String(bestStage)); }
         $("result-title").textContent = "¡GANASTE! 🎉";
         $("result-detail").textContent = `${yourTeam.name} ${match.youGoals} - ${match.oppGoals} ${match.opp.name}. ¡A ${ROUNDS[roundIdx + 1].short}!`;
         $("result-btn").textContent = "CONTINUAR ▶";
@@ -351,6 +416,63 @@
       $("result-btn").dataset.action = "retry";
       showOnly("result-screen");
     }
+  }
+
+  function startKnockouts() {
+    stage = "knockout"; roundIdx = 0;
+    const pool = TEAMS.filter((t) => !groupTeams.includes(t));
+    for (let s = pool.length - 1; s > 0; s--) { const j = (Math.random() * (s + 1)) | 0;[pool[s], pool[j]] = [pool[j], pool[s]]; }
+    bracket = pool.slice(0, 4);
+    showMatchIntro();
+  }
+
+  // ── Fase de grupos ──────────────────────────────────────────────────────────
+  function simGroupMatch(a, b) {
+    const ra = rowOf(a), rb = rowOf(b);
+    let ga = 1 + (Math.random() * 4 | 0), gb = 1 + (Math.random() * 4 | 0);
+    if (ga === gb) (Math.random() < 0.5 ? ga++ : gb++);
+    ra.gf += ga; ra.ga += gb; rb.gf += gb; rb.ga += ga;
+    if (ga > gb) ra.pts += 3; else rb.pts += 3;
+  }
+  function endGroupMatch(winner) {
+    const youR = rowOf(yourTeam), oppR = rowOf(currentOpp());
+    youR.gf += match.youGoals; youR.ga += match.oppGoals;
+    oppR.gf += match.oppGoals; oppR.ga += match.youGoals;
+    if (winner === "you") youR.pts += 3; else oppR.pts += 3;
+    const other = groupSchedule[matchday].other;
+    simGroupMatch(other[0], other[1]);
+    matchday++;
+    if (matchday < 3) {
+      showGroupStandings(`Resultado: ${yourTeam.name} ${match.youGoals}-${match.oppGoals} ${oppR.team.name}`, "SIGUIENTE FECHA ▶", "next");
+    } else {
+      const sorted = sortedTable();
+      const posIdx = sorted.findIndex((r) => r.team === yourTeam);
+      if (posIdx < 2) {
+        if (bestStage < 0) {/*noop*/}
+        showGroupStandings(`¡${yourTeam.name} clasifica ${posIdx === 0 ? "1º" : "2º"} y avanza a octavos! 🎉`, "⚽ A OCTAVOS", "knockout");
+      } else {
+        showGroupStandings(`${yourTeam.name} quedó ${posIdx + 1}º y no clasificó 😞`, "🔁 REINTENTAR", "retry");
+      }
+    }
+  }
+  function sortedTable() {
+    return groupTable.slice().sort((a, b) =>
+      b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf || (Math.random() - 0.5));
+  }
+  function showGroupStandings(msg, btnText, action) {
+    const sorted = sortedTable();
+    let html = `<tr><th></th><th>Equipo</th><th>PJ</th><th>DG</th><th>Pts</th></tr>`;
+    sorted.forEach((r, i) => {
+      const mine = r.team === yourTeam ? " class=\"gt-mine\"" : "";
+      const qual = i < 2 ? "✅" : "";
+      const pj = (r.pts > 0 || r.gf > 0 || r.ga > 0) ? Math.max(0, matchday) : matchday;
+      html += `<tr${mine}><td>${qual}</td><td>${badge(r.team, "sm")} ${r.team.name}</td><td>${matchday}</td><td>${r.gf - r.ga}</td><td><b>${r.pts}</b></td></tr>`;
+    });
+    $("gs-table").innerHTML = html;
+    $("gs-title").textContent = matchday < 3 ? `GRUPO ${groupName} · FECHA ${matchday}` : `GRUPO ${groupName} · FINAL`;
+    $("gs-msg").textContent = msg;
+    const btn = $("gs-btn"); btn.textContent = btnText; btn.dataset.action = action;
+    showOnly("group-screen");
   }
 
   // ── HUD del partido ─────────────────────────────────────────────────────--
@@ -650,7 +772,7 @@
   function pos(e) { const r = canvas.getBoundingClientRect(); const t = e.touches ? e.touches[0] : e; return { x: t.clientX - r.left, y: t.clientY - r.top }; }
   const isAimPhase = () => phase === PHASE.SHOOT_AIM || phase === PHASE.DEFEND_AIM;
   canvas.addEventListener("pointerdown", (e) => {
-    audio();
+    audio(); startCrowd();
     if (!isAimPhase()) return;
     const p = pos(e); aim.x = p.x; aim.y = p.y; aim.active = true; aim.dragging = true;
   });
@@ -668,18 +790,25 @@
   canvas.addEventListener("pointercancel", () => { aim.dragging = false; });
 
   // ── Botones ──────────────────────────────────────────────────────────────
-  $("play-btn").addEventListener("click", () => { audio(); buildTeamGrid(); showOnly("team-screen"); });
+  $("play-btn").addEventListener("click", () => { audio(); startCrowd(); buildGroups(); buildTeamGrid(); showOnly("team-screen"); });
   $("kick-btn").addEventListener("click", () => { audio(); startMatch(); });
   $("result-btn").addEventListener("click", function () {
     audio();
     if (this.dataset.action === "next") { roundIdx++; showMatchIntro(); }
     else { showStart(); }
   });
+  $("gs-btn").addEventListener("click", function () {
+    audio();
+    const a = this.dataset.action;
+    if (a === "next") showMatchIntro();
+    else if (a === "knockout") startKnockouts();
+    else showStart();
+  });
   $("champ-btn").addEventListener("click", () => { audio(); showStart(); });
 
   const muteBtn = $("mute-btn");
   const renderMute = () => muteBtn.textContent = muted ? "🔇" : "🔊";
-  muteBtn.addEventListener("click", () => { muted = !muted; localStorage.setItem("penales_muted", muted ? "1" : "0"); renderMute(); });
+  muteBtn.addEventListener("click", () => { muted = !muted; localStorage.setItem("penales_muted", muted ? "1" : "0"); renderMute(); if (muted) stopCrowd(); else startCrowd(); });
   renderMute();
 
   function showStart() {
