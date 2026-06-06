@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Penales Mundial 2026 ⚽ | Juego de penales gratis</title>
+  <meta name="description" content="Pateá penales como en el Mundial 2026. ¿Cuántos goles seguidos podés hacer? Juego gratis, sin descargas, para celular y compu." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game-wrap">
+    <canvas id="game"></canvas>
+  </div>
+
+  <button id="mute-btn" aria-label="Silenciar">🔊</button>
+
+  <div id="hud">
+    <div class="hud-box">
+      <div class="hud-label">Goles seguidos</div>
+      <div class="hud-value" id="score-value">0</div>
+    </div>
+    <div class="hud-box">
+      <div class="hud-label">Récord</div>
+      <div class="hud-value best" id="best-value">0</div>
+    </div>
+  </div>
+
+  <!-- Pantalla de inicio -->
+  <div class="overlay" id="start-screen">
+    <div class="flag">⚽🏆</div>
+    <h1>PENALES<br />MUNDIAL 2026</h1>
+    <p>Tocá dentro del arco para patear. El arquero va a tratar de atajarte. ¿Cuántos goles seguidos hacés?</p>
+    <button class="btn" id="start-btn">▶ JUGAR</button>
+    <div class="hint">👆 Apuntá a los ángulos para que no te ataje</div>
+  </div>
+
+  <!-- Pantalla de fin -->
+  <div class="overlay hidden" id="over-screen">
+    <p class="sub">Goles seguidos</p>
+    <div class="big-score" id="final-score">0</div>
+    <p id="final-msg"></p>
+    <p class="sub" id="final-best">Mejor: 0</p>
+    <button class="btn" id="retry-btn">🔁 JUGAR DE NUEVO</button>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
