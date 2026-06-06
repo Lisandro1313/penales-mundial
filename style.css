@@ -52,8 +52,7 @@ canvas {
 
 #mute-btn {
   position: fixed;
-  top: 12px; left: 50%;
-  transform: translateX(-50%);
+  bottom: 14px; right: 14px;
   z-index: 6;
   background: rgba(7,12,30,0.55);
   border: 1px solid rgba(255,255,255,0.12);
@@ -75,7 +74,9 @@ canvas {
   justify-content: center;
   text-align: center;
   padding: 24px;
-  background: radial-gradient(circle at 50% 30%, rgba(11,16,32,0.55), rgba(11,16,32,0.92));
+  background:
+    radial-gradient(circle at 50% 20%, rgba(31,122,67,0.30), rgba(0,0,0,0) 60%),
+    linear-gradient(180deg, #0c1830 0%, #0a1020 100%);
   color: #fff;
 }
 .overlay.hidden { display: none; }
@@ -145,7 +146,7 @@ canvas {
 /* ── Prompt central ── */
 #phase-prompt {
   position: fixed;
-  top: 14%; left: 0; right: 0;
+  top: 55%; left: 0; right: 0;
   z-index: 6;
   display: flex;
   flex-direction: column;
@@ -201,8 +202,24 @@ canvas {
 .team-btn:hover { border-color: #38bdf8; background: rgba(56,189,248,0.12); }
 .team-btn .tb-flag { font-size: 30px; }
 .team-btn .tb-name { font-size: 11px; font-weight: 700; }
-.team-btn .tb-jersey { display: flex; gap: 3px; margin-top: 2px; }
-.team-btn .tb-swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.25); }
+.team-btn .tb-name { margin-top: 2px; }
+
+/* Escudo con colores + código (se ve en cualquier dispositivo) */
+.badge2 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-style: solid;
+  border-width: 2px;
+  border-radius: 8px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+.badge2.sm { font-size: 13px; padding: 5px 7px; border-radius: 7px; }
+.badge2.md { font-size: 19px; padding: 9px 8px; border-radius: 10px; }
+.badge2.lg { font-size: 30px; padding: 14px 14px; border-radius: 14px; border-width: 3px; }
 
 /* ── Intro de partido ── */
 .mi-round { font-size: clamp(16px, 5vw, 26px); font-weight: 900; color: #ffd34d; letter-spacing: 1px; margin-bottom: 18px; }
