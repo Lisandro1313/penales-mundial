@@ -224,11 +224,11 @@
   // ── Anuncios (GameMonetize) ──────────────────────────────────────────────
   window.__gmPause = function () { stopCrowd(); };
   window.__gmResume = function () { if (!muted) startCrowd(); };
-  let adCounter = 0;
   function showAd() {
     try { if (window.sdk && typeof window.sdk.showBanner === "function") window.sdk.showBanner(); } catch (e) {}
   }
-  function maybeShowAd() { adCounter++; if (adCounter % 2 === 0) showAd(); } // 1 aviso cada 2 transiciones
+  // En cada cambio de partido se intenta un aviso; GameMonetize regula la frecuencia.
+  function maybeShowAd() { showAd(); }
 
   // ── Overlays ─────────────────────────────────────────────────────────────
   const $ = (id) => document.getElementById(id);
