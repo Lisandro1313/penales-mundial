@@ -99,6 +99,24 @@
   <audio id="snd-crowd" src="sounds/crowd.mp3" loop preload="auto"></audio>
   <audio id="snd-goal" src="sounds/goal.mp3" preload="auto"></audio>
 
+  <!-- ===================== GameMonetize SDK (anuncios) ===================== -->
+  <!-- Cuando registres el juego en gamemonetize.com te dan un GAME ID.
+       Pegalo abajo entre las comillas y volvé a desplegar. -->
+  <script>
+    window.GM_GAME_ID = ""; // ← PEGÁ ACÁ TU GAME ID DE GAMEMONETIZE
+    window.SDK_OPTIONS = {
+      gameId: window.GM_GAME_ID || "preview",
+      onEvent: function (a) {
+        if (a.name === "SDK_GAME_PAUSE") { if (window.__gmPause) window.__gmPause(); }
+        else if (a.name === "SDK_GAME_START") { if (window.__gmResume) window.__gmResume(); }
+      }
+    };
+    (function (a, b, c) {
+      var d = a.getElementsByTagName(b)[0];
+      if (!a.getElementById(c)) { a = a.createElement(b); a.id = c; a.src = "https://api.gamemonetize.com/sdk.js"; d.parentNode.insertBefore(a, d); }
+    })(document, "script", "gamemonetize-sdk");
+  </script>
+
   <script src="game.js"></script>
 </body>
 </html>

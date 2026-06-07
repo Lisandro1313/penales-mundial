@@ -221,6 +221,15 @@
     beep(110, 0.16, "sine", 0.22); noiseBurst(0.12, 0.13, 500, 0.005);
   }
 
+  // ── Anuncios (GameMonetize) ──────────────────────────────────────────────
+  window.__gmPause = function () { stopCrowd(); };
+  window.__gmResume = function () { if (!muted) startCrowd(); };
+  let adCounter = 0;
+  function showAd() {
+    try { if (window.sdk && typeof window.sdk.showBanner === "function") window.sdk.showBanner(); } catch (e) {}
+  }
+  function maybeShowAd() { adCounter++; if (adCounter % 2 === 0) showAd(); } // 1 aviso cada 2 transiciones
+
   // ── Overlays ─────────────────────────────────────────────────────────────
   const $ = (id) => document.getElementById(id);
   const show = (id) => $(id).classList.remove("hidden");
@@ -886,14 +895,14 @@
   $("kick-btn").addEventListener("click", () => { audio(); startMatch(); });
   $("result-btn").addEventListener("click", function () {
     audio();
-    if (this.dataset.action === "next") { roundIdx++; showMatchIntro(); }
+    if (this.dataset.action === "next") { maybeShowAd(); roundIdx++; showMatchIntro(); }
     else { showStart(); }
   });
   $("gs-btn").addEventListener("click", function () {
     audio();
     const a = this.dataset.action;
-    if (a === "next") showMatchIntro();
-    else if (a === "knockout") startKnockouts();
+    if (a === "next") { maybeShowAd(); showMatchIntro(); }
+    else if (a === "knockout") { maybeShowAd(); startKnockouts(); }
     else showStart();
   });
   $("champ-btn").addEventListener("click", () => { audio(); showStart(); });
